@@ -24,7 +24,6 @@ categories = {"vuln", "discovery", "safe"}
 local http = require "http"
 local stdnse = require "stdnse"
 local string = require "string"
-local vulns = require "vulns"
 
 portrule = function(host, port)
   return port.protocol == "tcp" and
@@ -168,29 +167,16 @@ action = function(host, port)
     end
   end
 
-  -- SECCIÓN DE REPORTE FINAL
+  -- SECCIÓN DE REPORTE FINAL (Formateo manual para evitar bugs de Nmap)
   if #output > 0 then
     if is_vulnerable then
-      -- Si hay versión vulnerable, usamos la librería nativa de Nmap
-      local vuln = {
-        title = "PHP2Shell (CVE-2026-109618 / CVE-2026-109619) Potential Exposure",
-        state = vulns.STATE.LIKELY_VULNERABLE,
-        ids = {
-          "CVE:2026-109618",
-          "CVE:2026-109619"
-        },
-        description = "El servidor expone un backend PHP con caracteristicas potencialmente vulnerables a PHP2Shell.",
-        references = {
-          "https://github.com/matarturo/php2shell-nse-scanner"
-        }
-      }
-      -- table.concat(output, "\n") pasa los hallazgos como texto dentro del cuadro de Vulnerable
-      vulns.report(host, port, vuln, table.concat(output, "\n"))
-    else
-      -- Si solo detectamos PHP pero no es vulnerable (ej. Cloudflare), mostramos texto normal
-      return stdnse.format_output(true, output)
+      -- Insertamos una cabecera visual para simular el cuadro de VULNERABLE
+      table.insert(output, 1, "State: LIKELY VULNERABLE")
+      table.insert(output, 1, "IDs: CVE:2026-109618, CVE:2026-109619")
+      table.insert(output, 1, "Title: PHP2Shell (CVE-2026-109618 / CVE-2026-109619) Potential Exposure")
+      table.insert(output, 1, "VULNERABLE:")
     end
-    return nil
+    return stdnse.format_output(true, output)
   end
 
   return nil
