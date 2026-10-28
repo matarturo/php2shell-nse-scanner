@@ -24,7 +24,7 @@ categories = {"vuln", "discovery", "safe"}
 local http = require "http"
 local stdnse = require "stdnse"
 local string = require "string"
-local vulns = require "vulns" -- NUEVA LIBRERÍA
+local vulns = require "vulns"
 
 portrule = function(host, port)
   return port.protocol == "tcp" and
@@ -32,7 +32,6 @@ portrule = function(host, port)
          port.state == "open"
 end
 
--- Evalua si una version de PHP entra en los umbrales de Octubre 2026
 local function evaluar_version(version_str)
   if type(version_str) == "table" then
     version_str = version_str[1] or ""
@@ -96,7 +95,7 @@ action = function(host, port)
   local output = {}
   local seen = {}
   local php_detected = false
-  local is_vulnerable = false -- NUEVO FLAG: Para saber si debemos reportar VULNERABLE
+  local is_vulnerable = false
 
   local err_path = stdnse.get_script_args("http-vuln-php2shell.path") or "/index.php"
 
@@ -169,28 +168,28 @@ action = function(host, port)
     end
   end
 
-  -- NUEVA SECCIÓN DE REPORTE USANDO VULNS
+  -- SECCIÓN DE REPORTE FINAL
   if #output > 0 then
-    -- Si el flag is_vulnerable es true, Nmap mostrará un cuadro de VULNERABLE
-    local state = is_vulnerable and vulns.STATE.LIKELY_VULNERABLE or vulns.STATE.NOT_VULNERABLE
-    
-    local vuln = {
-      title = "PHP2Shell (CVE-2026-109618 / CVE-2026-109619) Potential Exposure",
-      state = state,
-      ids = {
-        "CVE:2026-109618",
-        "CVE:2026-109619"
-      },
-      description = "El servidor expone un backend PHP con caracteristicas potencialmente vulnerables a PHP2Shell.",
-      references = {
-        "https://github.com/matarturo/php2shell-nse-scanner"
+    if is_vulnerable then
+      -- Si hay versión vulnerable, usamos la librería nativa de Nmap
+      local vuln = {
+        title = "PHP2Shell (CVE-2026-109618 / CVE-2026-109619) Potential Exposure",
+        state = vulns.STATE.LIKELY_VULNERABLE,
+        ids = {
+          "CVE:2026-109618",
+          "CVE:2026-109619"
+        },
+        description = "El servidor expone un backend PHP con caracteristicas potencialmente vulnerables a PHP2Shell.",
+        references = {
+          "https://github.com/matarturo/php2shell-nse-scanner"
+        }
       }
-    }
-
-    -- Reportamos la vulnerabilidad oficial a Nmap
-    vulns.report(host, port, vuln, stdnse.format_output(true, output))
-    
-    -- Retornamos nil porque vulns.report ya se encarga de imprimir en pantalla
+      -- table.concat(output, "\n") pasa los hallazgos como texto dentro del cuadro de Vulnerable
+      vulns.report(host, port, vuln, table.concat(output, "\n"))
+    else
+      -- Si solo detectamos PHP pero no es vulnerable (ej. Cloudflare), mostramos texto normal
+      return stdnse.format_output(true, output)
+    end
     return nil
   end
 
