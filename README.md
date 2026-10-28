@@ -23,23 +23,52 @@ A diferencia de las sondas de escaneo pasivo tradicionales que fallan cuando un 
 
 ---
 
+## 📥 Descarga y Clonación en Linux
+
+Para obtener una copia local de este script de auditoría, clona este repositorio directamente desde tu terminal de Linux:
+
+```bash
+git clone https://github.com
+cd php2shell-nse-scanner
+```
+
 ## 🚀 Requisitos e Instalación
 
-### 1. Ubicación del Archivo
-Copia el archivo `.nse` dentro de la ruta global de almacenamiento de scripts de tu suite de Nmap:
+### Requisitos del Sistema
+*   **Nmap 7.70 o superior** (Recomendado **Nmap 7.90+** para garantizar estabilidad en el motor de Lua con el manejo de proxies perimetrales).
+*   Compatible de forma nativa sobre plataformas **GNU/Linux** y **Microsoft Windows**.
 
+---
+
+### 📦 Instalación en GNU/Linux
+
+#### 1. Ubicación del Archivo
+Mueve el archivo `.nse` dentro de la ruta global de almacenamiento de scripts de tu suite de Nmap:
 ```bash
 sudo cp http-vuln-php2shell.nse /usr/share/nmap/scripts/
 ```
 
-### 2. Actualización de la Base de Datos
-Actualiza el índice interno de scripts de Nmap para asegurar que reconozca la nueva firma comunitaria:
-
+#### 2. Actualización de la Base de Datos
+Actualiza el índice interno de scripts de Nmap para asegurar que reconozca la nueva firma:
 ```bash
 sudo nmap --script-db
 ```
 
 ---
+
+### 🪟 Instalación en Microsoft Windows
+
+#### 1. Ubicación del Archivo
+Copia el archivo `http-vuln-php2shell.nse` dentro del directorio de instalación de Nmap. Por defecto, las rutas estándar del sistema son:
+
+*   **Sistemas de 64 bits:** `C:\Program Files (x86)\Nmap\scripts\`
+*   **Instalaciones limpias de 64 bits:** `C:\Program Files\Nmap\scripts\`
+
+#### 2. Actualización de la Base de Datos
+Abre una consola de comandos (**cmd** o **PowerShell**) con privilegios de **Administrador** y ejecuta el siguiente comando para regenerar el índice de scripts:
+```powershell
+nmap --script-db
+```
 
 ## 💻 Modos de Uso y Ejemplos de Ejecución
 
@@ -52,7 +81,7 @@ nmap -p 80,443,8080 -Pn -n --script http-vuln-php2shell dominio-objetivo.com
 ### Escaneo a través de Proxies Corporativos
 Para auditorías de Caja Negra perimetrales que requieran saltar un proxy corporativo (Sintaxis compatible con el motor interno de Nmap):
 ```bash
-nmap -p 80,443 -Pn -n --script http-vuln-php2shell --proxies "http://192.168.101.11:84" dominio-interno.local
+nmap -p 80,443 -Pn -n --script http-vuln-php2shell --proxies "http://0.0.0.0:00" dominio-interno.local
 ```
 *(Nota: Si el proxy requiere autenticación, recuerda exportar previamente tus credenciales en las variables de entorno `http_proxy` y `https_proxy` de tu consola Linux antes de inicializar Nmap).*
 
