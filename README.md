@@ -1,9 +1,3 @@
-Entendido: te dejo **todo en markdown limpio**, listo para copiar y pegar en cada archivo. Cuatro archivos para completar el repo.
-
----
-
-## 📄 Archivo 1: `README.md`
-
 ```markdown
 # http-vuln-php2shell.nse
 
