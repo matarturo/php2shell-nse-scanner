@@ -24,6 +24,7 @@ categories = {"vuln", "discovery", "safe"}
 local http = require "http"
 local stdnse = require "stdnse"
 local string = require "string"
+local vulns = require "vulns" -- NUEVA LIBRERÍA
 
 portrule = function(host, port)
   return port.protocol == "tcp" and
@@ -59,17 +60,12 @@ local function evaluar_version(version_str)
   return false
 end
 
--- FIX 1: Nmap entrega ciertos headers como tabla cuando hay multiples valores.
--- Sin esto, X-Powered-By y Server se pierden silenciosamente.
 local function header_to_string(h)
   if type(h) == "string" then return h end
   if type(h) == "table" then return table.concat(h, "; ") end
   return nil
 end
 
--- FIX 2 (Tecnica C): 'set-cookie' es casi siempre tabla, no string.
--- El check original 'type(cookie_h) == "string"' fallaba siempre en produccion.
--- Ahora se usa response.cookies["PHPSESSID"] que es la via canonica de Nmap.
 local function tiene_phpsessid(response)
   if response.cookies and response.cookies["PHPSESSID"] then
     return true
@@ -79,9 +75,6 @@ local function tiene_phpsessid(response)
   return sc_str ~= nil and string.find(sc_str, "PHPSESSID", 1, true) ~= nil
 end
 
--- FIX 3 (Tecnica D): El regex original solo matcheaba "PHP Version X.Y.Z",
--- que en la practica solo aparece con phpinfo(). Se anaden patrones de
--- fatal error, parse error, warning y notice reales.
 local function tiene_error_php(body)
   if not body then return false end
   if string.find(body, "Fatal error", 1, true) then return true end
@@ -92,7 +85,6 @@ local function tiene_error_php(body)
   return false
 end
 
--- Acumula hallazgos sin duplicar mensajes exactos
 local function add_finding(output, seen, msg)
   if not seen[msg] then
     seen[msg] = true
@@ -104,35 +96,34 @@ action = function(host, port)
   local output = {}
   local seen = {}
   local php_detected = false
+  local is_vulnerable = false -- NUEVO FLAG: Para saber si debemos reportar VULNERABLE
 
-  -- FIX 4 (Tecnica D): path del front controller parametrizable.
-  -- Antes estaba hardcodeado a /index.php y fallaba en apps con otro entrypoint.
   local err_path = stdnse.get_script_args("http-vuln-php2shell.path") or "/index.php"
 
-  -- 1. Peticion a la raiz. Se relaja el filtro 'status == 200': los headers
-  -- con PHP pueden aparecer tambien en 30x/403/500.
   local response = http.get(host, port, "/")
 
   if response and response.header then
-    -- TECNICA A: X-Powered-By
+    -- TECNICA A
     local x_powered = header_to_string(response.header['x-powered-by'])
     if x_powered and string.find(x_powered, "PHP", 1, true) then
       php_detected = true
       local v = string.match(x_powered, "PHP/%d+%.%d+%.%d+") or x_powered
       if evaluar_version(x_powered) then
+        is_vulnerable = true
         add_finding(output, seen, "ALERTA (A): PHP2Shell potencial via X-Powered-By -> " .. v)
       else
         add_finding(output, seen, "INFO (A): X-Powered-By expone " .. v .. " (fuera de umbrales Oct-2026)")
       end
     end
 
-    -- TECNICA B: Server header
+    -- TECNICA B
     local server_h = header_to_string(response.header['server'])
     if server_h then
       local php_match = string.match(server_h, "PHP/%d+%.%d+%.%d+")
       if php_match then
         php_detected = true
         if evaluar_version(php_match) then
+          is_vulnerable = true
           add_finding(output, seen, "ALERTA (B): PHP2Shell potencial via cabecera Server -> " .. php_match)
         else
           add_finding(output, seen, "INFO (B): Server expone " .. php_match .. " (fuera de umbrales Oct-2026)")
@@ -140,14 +131,14 @@ action = function(host, port)
       end
     end
 
-    -- TECNICA C: cookie PHPSESSID (corregida para tabla o string)
+    -- TECNICA C
     if tiene_phpsessid(response) then
       php_detected = true
       add_finding(output, seen, "AVISO (C): Backend PHP detectado por cookie PHPSESSID (cabeceras de version pueden estar ocultas).")
     end
   end
 
-  -- TECNICA D: induccion de errores con path parametrizable
+  -- TECNICA D
   local err_response = http.get(host, port, err_path .. "?[]=")
   if err_response and err_response.body and tiene_error_php(err_response.body) then
     php_detected = true
@@ -155,6 +146,7 @@ action = function(host, port)
            or string.match(err_response.body, "PHP Version %d+%.%d+%.%d+")
            or string.match(err_response.body, "PHP/%d+%.%d+%.%d+")
     if v and evaluar_version(v) then
+      is_vulnerable = true
       add_finding(output, seen, "ALERTA (D): PHP2Shell expuesto en Stack Trace -> " .. v)
     elseif v then
       add_finding(output, seen, "INFO (D): Stack Trace expone " .. v .. " (fuera de umbrales Oct-2026)")
@@ -163,10 +155,7 @@ action = function(host, port)
     end
   end
 
-  -- FIX 5 + TECNICA E: verificacion diferencial.
-  -- Solo se ejecuta si A-D no detectaron nada. Compara una respuesta normal
-  -- contra una con input malformado. Si la segunda introduce errores PHP que
-  -- la primera no tiene, hay senal de backend PHP con manejo de errores debil.
+  -- TECNICA E
   if not php_detected and response then
     local malformed = http.get(host, port, "/?nse_probe[]=1")
     if malformed then
@@ -180,8 +169,29 @@ action = function(host, port)
     end
   end
 
+  -- NUEVA SECCIÓN DE REPORTE USANDO VULNS
   if #output > 0 then
-    return stdnse.format_output(true, output)
+    -- Si el flag is_vulnerable es true, Nmap mostrará un cuadro de VULNERABLE
+    local state = is_vulnerable and vulns.STATE.LIKELY_VULNERABLE or vulns.STATE.NOT_VULNERABLE
+    
+    local vuln = {
+      title = "PHP2Shell (CVE-2026-109618 / CVE-2026-109619) Potential Exposure",
+      state = state,
+      ids = {
+        "CVE:2026-109618",
+        "CVE:2026-109619"
+      },
+      description = "El servidor expone un backend PHP con caracteristicas potencialmente vulnerables a PHP2Shell.",
+      references = {
+        "https://github.com/matarturo/php2shell-nse-scanner"
+      }
+    }
+
+    -- Reportamos la vulnerabilidad oficial a Nmap
+    vulns.report(host, port, vuln, stdnse.format_output(true, output))
+    
+    -- Retornamos nil porque vulns.report ya se encarga de imprimir en pantalla
+    return nil
   end
 
   return nil
