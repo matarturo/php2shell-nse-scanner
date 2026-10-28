@@ -1,4 +1,3 @@
-```markdown
 # http-vuln-php2shell.nse
 
 Script NSE para Nmap que realiza **fingerprinting de versión PHP** y **verificación conductual** orientada a detectar la superficie de exposición de PHP2Shell (**CVE-2026-109618** y **CVE-2026-109619**).
