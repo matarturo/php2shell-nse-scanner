@@ -41,42 +41,40 @@ local function evaluar_version(version_str)
   end
   return false
 end
-
 action = function(host, port)
   local output = {}
-  
+
   -- 1. Petición estándar a la raíz
   local response = http.get(host, port, "/")
-  
-  if response and response.headers then
+
+  if response and response.status == 200 and response.header then
     -- TÉCNICA A: Verificar X-Powered-By
-    if response.headers['x-powered-by'] then
-      local php_version = response.headers['x-powered-by']
-      if string.match(php_version, "PHP") and evaluar_version(php_version) then
-        return stdnse.format_output(true, "ALERTA: PHP2Shell potencial confirmado vía X-Powered-By -> " .. php_version)
+    local x_powered = response.header['x-powered-by']
+    if x_powered then
+      if string.match(x_powered, "PHP") and evaluar_version(x_powered) then
+        return stdnse.format_output(true, "ALERTA: PHP2Shell potencial confirmado vía X-Powered-By -> " .. x_powered)
       end
     end
-    
-    -- TÉCNICA B: Buscar PHP dentro de la cabecera Server (Común en Apache)
-    if response.headers['server'] then
-      local server_header = response.headers['server']
-      local php_match = string.match(server_header, "PHP/%d+%.%d+%.%d+")
+
+    -- TÉCNICA B: Buscar PHP dentro de la cabecera Server
+    local server_h = response.header['server']
+    if server_h then
+      local php_match = string.match(server_h, "PHP/%d+%.%d+%.%d+")
       if php_match and evaluar_version(php_match) then
         return stdnse.format_output(true, "ALERTA: PHP2Shell potencial confirmado vía cabecera Server -> " .. php_match)
       end
     end
 
-    -- TÉCNICA C: Huella digital sutil (Si el WAF camufló las cabeceras pero usa PHP)
-    if response.headers['set-cookie'] then
-      local cookie = response.headers['set-cookie']
-      if string.match(cookie, "PHPSESSID") then
-        table.insert(output, "Aviso: El backend utiliza PHP (Detectado por cookie PHPSESSID), pero las cabeceras de versión están ocultas por el WAF/Proxy.")
+    -- TÉCNICA C: Huella digital sutil por Cookies
+    local cookie_h = response.header['set-cookie']
+    if cookie_h and type(cookie_h) == "string" then
+      if string.match(cookie_h, "PHPSESSID") then
+        table.insert(output, "Aviso: El backend utiliza PHP (Detectado por cookie PHPSESSID), pero las cabeceras de versión están ocultas.")
       end
     end
   end
 
-  -- TÉCNICA D: Inducción de excepciones (Simular comportamiento del Bloque III de tu script de Bash)
-  -- Forzamos un parámetro incorrecto para intentar causar un error que el WAF deje pasar
+  -- TÉCNICA D: Inducción de excepciones (Forzar error con parámetros anómalos)
   local err_response = http.get(host, port, "/index.php?[]=")
   if err_response and err_response.body then
     if string.match(err_response.body, "Fatal error") or string.match(err_response.body, "Stack trace") then
@@ -91,6 +89,6 @@ action = function(host, port)
   if #output > 0 then
     return stdnse.format_output(true, output)
   end
-  
+
   return nil
 end
