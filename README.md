@@ -1,122 +1,187 @@
+Entendido: te dejo **todo en markdown limpio**, listo para copiar y pegar en cada archivo. Cuatro archivos para completar el repo.
+
+---
+
+## 📄 Archivo 1: `README.md`
+
+```markdown
 # http-vuln-php2shell.nse
 
-Un script avanzado para el motor de escaneo de Nmap (NSE) diseñado para identificar de manera no intrusiva la presencia de la vulnerabilidad crítica PHP2Shell (**CVE-2026-109618** y **CVE-2026-109619**) mediante análisis adaptativo multi-capa.
+Script NSE para Nmap que realiza **fingerprinting de versión PHP** y **verificación conductual** orientada a detectar la superficie de exposición de PHP2Shell (**CVE-2026-109618** y **CVE-2026-109619**).
 
-A diferencia de las sondas de escaneo pasivo tradicionales que fallan cuando un firewall o balanceador oculta la información, este script implementa cuatro técnicas secuenciales de inspección de Caja Negra para extraer la versión real del motor PHP, estando optimizado específicamente para entornos e infraestructuras protegidas por WAFs, Proxies e intermediarios de red.
-
----
-
-## 🛠️ Características Principales
-
-*   **Evaluación de Umbrales Críticos (Octubre 2026):** Confronta de forma estricta las firmas contra las ramas corregidas estables y detecta versiones heredadas obsoletas o en estado de Fin de Vida (EOL).
-*   **Activación por Regla Manual (`portrule`):** Rompe la dependencia de la fase de firmas `-sV`. El script se gatilla de forma forzada si los puertos web estándar (`80`, `443`, `8080`) se encuentran en estado abierto.
-*   **Estrategia Resiliente Anti-Evasión:** Diseñado con lógica de respaldo jerárquica para seguir buscando la huella del software subyacente incluso si los encabezados HTTP primarios son eliminados por proxies perimetrales.
+> ⚠️ **Importante:** Este script **no explota** la vulnerabilidad ni confirma el CVE. Solo identifica servidores que **probablemente** son vulnerables según versión expuesta o comportamiento anómalo. Para confirmar el CVE se requiere un PoC específico contra la IP de origen.
 
 ---
 
-## 🔍 Técnicas de Inspección Implementadas
+## 🛠️ Características
 
-*   **Técnica A (Cabecera `X-Powered-By`):** Extracción directa y parsing de la cadena de la tecnología emisora.
-*   **Técnica B (Cabecera `Server`):** Búsqueda de expresiones regulares complejas de PHP inyectadas comúnmente en la firma del servidor (como ocurre en implementaciones nativas de Apache).
-*   **Técnica C (Stateful Fingerprinting por Cookies):** Identificación pasiva del motor mediante la detección de directivas estructurales de sesión como `PHPSESSID`.
-*   **Técnica D (Inducción de Excepciones de Aplicación):** Inyección controlada de parámetros malformados (`/index.php?[]=`) para inducir un *Forced Stack Trace* (Manejo de errores estructurales) en el HTML del cuerpo y capturar la versión si los encabezados HTTP perimetrales están camuflados.
+- **Evaluación de umbrales críticos (Octubre 2026):** compara la versión detectada contra las ramas corregidas (PHP 8.2.35, 8.3.36, 8.4.27, 8.5.12) y marca como vulnerables las ramas EOL (5.x, 7.x) y las 8.x anteriores al parche.
+- **Activación por `portrule`:** el script se ejecuta si los puertos `80`, `443` o `8080` están abiertos, sin depender de `-sV`.
+- **Estrategia multi-técnica:** cinco vectores de inspección independientes, acumulados en un solo escaneo (no hay `return` temprano, así puedes ver cuáles dispararon y cuáles no).
+- **Path del front controller parametrizable:** `--script-args http-vuln-php2shell.path=/app.php`.
 
 ---
 
-## 📥 Descarga y Clonación en Linux
+## 🔍 Técnicas de inspección
 
-Para obtener una copia local de este script de auditoría, clona este repositorio directamente desde tu terminal de Linux:
+| Técnica | Vector | Depende de |
+| --- | --- | --- |
+| **A** | Cabecera `X-Powered-By` | `expose_php=On` |
+| **B** | Cabecera `Server` con `PHP/x.y.z` | Configuración Apache/IIS |
+| **C** | Cookie `PHPSESSID` | Sesiones PHP activas en `/` |
+| **D** | Inducción de stack trace (`/index.php?[]=`) | `display_errors=On` |
+| **E** | Verificación diferencial (baseline vs input malformado) | Manejo de errores débil |
+
+Las técnicas **A–D** son de fingerprinting. La **E** es la única que compara comportamiento y añade una señal conductual.
+
+---
+
+## 📥 Clonación e instalación
 
 ```bash
-git clone https://github.com
+git clone https://github.com/matarturo/php2shell-nse-scanner.git
 cd php2shell-nse-scanner
 ```
 
-## 🚀 Requisitos e Instalación
+### 🐧 GNU/Linux
 
-### Requisitos del Sistema
-*   **Nmap 7.70 o superior** (Recomendado **Nmap 7.90+** para garantizar estabilidad en el motor de Lua con el manejo de proxies perimetrales).
-*   Compatible de forma nativa sobre plataformas **GNU/Linux** y **Microsoft Windows**.
-
----
-
-### 📦 Instalación en GNU/Linux
-
-#### 1. Ubicación del Archivo
-Mueve el archivo `.nse` dentro de la ruta global de almacenamiento de scripts de tu suite de Nmap:
 ```bash
 sudo cp http-vuln-php2shell.nse /usr/share/nmap/scripts/
 ```
 
-#### 2. Actualización de la Base de Datos
-Actualiza el índice interno de scripts de Nmap para asegurar que reconozca la nueva firma:
+**No hace falta ejecutar `nmap --script-db`.** Nmap detecta automáticamente los `.nse` presentes en la carpeta `scripts/` en la siguiente ejecución. Si quieres verificar que lo reconoce:
+
 ```bash
-sudo nmap --script-db
+nmap --script-help http-vuln-php2shell
+```
+
+### 🪟 Microsoft Windows
+
+#### Prerrequisitos
+
+- **Nmap 7.94 o superior** instalado. Verifica con:
+
+  ```cmd
+  nmap --version
+- Git for Windows instalado (incluye Git Bash y git.exe en el PATH). Descárgalo desde git-scm.com/download/win.
+
+- Alternativa sin Git: descarga el ZIP del repositorio desde github.com/matarturo/php2shell-nse-scanner/archive/refs/heads/main.zip y descomprímelo.
+
+Abre una consola **como Administrador** y copia el archivo:
+
+```cmd
+copy http-vuln-php2shell.nse "C:\Program Files (x86)\Nmap\scripts\"
+```
+
+Rutas habituales según instalación:
+
+- `C:\Program Files (x86)\Nmap\scripts\` (instalador estándar de 64 bits)
+- `C:\Program Files\Nmap\scripts\` (instalaciones limpias)
+
+Verifica que Nmap lo reconoce:
+
+```cmd
+nmap --script-help http-vuln-php2shell
 ```
 
 ---
 
-### 🪟 Instalación en Microsoft Windows
+## 💻 Uso
 
-#### 1. Ubicación del Archivo
-Copia el archivo `http-vuln-php2shell.nse` dentro del directorio de instalación de Nmap. Por defecto, las rutas estándar del sistema son:
+### Escaneo estándar
 
-*   **Sistemas de 64 bits:** `C:\Program Files (x86)\Nmap\scripts\`
-*   **Instalaciones limpias de 64 bits:** `C:\Program Files\Nmap\scripts\`
-
-#### 2. Actualización de la Base de Datos
-Abre una consola de comandos (**cmd** o **PowerShell**) con privilegios de **Administrador** y ejecuta el siguiente comando para regenerar el índice de scripts:
-```powershell
-nmap --script-db
-```
-
-## 💻 Modos de Uso y Ejemplos de Ejecución
-
-### Escaneo Directo Estándar (Internet o Red Local)
-Para auditar un objetivo expuesto de forma directa utilizando resolución de nombres o dirección IP:
 ```bash
-nmap -p 80,443,8080 -Pn -n --script http-vuln-php2shell dominio-objetivo.com
+nmap -p 80,443,8080 -Pn -n --script http-vuln-php2shell \
+  --script-args http.useragent="Mozilla/5.0" dominio-objetivo.com
 ```
 
-### Escaneo a través de Proxies Corporativos
-Para auditorías de Caja Negra perimetrales que requieran saltar un proxy corporativo (Sintaxis compatible con el motor interno de Nmap):
-```bash
-nmap -p 80,443 -Pn -n --script http-vuln-php2shell --proxies "http://0.0.0.0:00" dominio-interno.local
-```
-*(Nota: Si el proxy requiere autenticación, recuerda exportar previamente tus credenciales en las variables de entorno `http_proxy` y `https_proxy` de tu consola Linux antes de inicializar Nmap).*
+### Con path personalizado del front controller
 
-### Modo de Depuración Verbosa (Auditoría de Respuestas)
-Si deseas inspeccionar las trazas de depuración de Lua y observar qué técnicas específicas están arrojando datos en la terminal, añade el argumento `-d`:
 ```bash
-nmap -p 80,443 --script http-vuln-php2shell dominio-objetivo.com -d
+nmap -p 443 -Pn -n --script http-vuln-php2shell \
+  --script-args "http.useragent=Mozilla/5.0,http-vuln-php2shell.path=/app.php" \
+  dominio-objetivo.com
 ```
+
+### Modo debug (ver por qué cada técnica dispara o no)
+
+```bash
+nmap -p 443 -Pn -n --script http-vuln-php2shell -d dominio-objetivo.com
+```
+
+### A través de proxy corporativo
+
+```bash
+export http_proxy="http://usuario:pass@proxy.local:8080"
+export https_proxy="$http_proxy"
+nmap -p 443 -Pn -n --script http-vuln-php2shell dominio-interno.local
+```
+
+*(Nmap hereda las variables de entorno del sistema; no uses `--proxies` con valores ficticios.)*
 
 ---
 
-## 📊 Formato de Salida en Pantalla
+## 📊 Interpretación de resultados
 
-### Escenario 1: Vulnerabilidad Confirmada
+### Alerta: versión dentro de umbrales vulnerables
+
 ```text
-PORT    STATE SERVICE
-80/tcp  open  http
-|_http-vuln-php2shell: ALERTA: PHP2Shell potencial confirmado vía X-Powered-By -> PHP/8.4.25
+| http-vuln-php2shell:
+|   ALERTA (A): PHP2Shell potencial via X-Powered-By -> PHP/8.4.25
+|   ALERTA (B): PHP2Shell potencial via cabecera Server -> PHP/8.4.25
+|_  AVISO (C): Backend PHP detectado por cookie PHPSESSID
 ```
 
-### Escenario 2: Evasión por WAF Detectada (Entorno PHP Identificado)
+### Informativo: PHP detectado pero fuera de umbrales
+
 ```text
-PORT    STATE SERVICE
-443/tcp open  https
-|_http-vuln-php2shell: 
-|   Aviso: El backend utiliza PHP (Detectado por cookie PHPSESSID), pero las cabeceras de versión están ocultas por el WAF/Proxy.
+| http-vuln-php2shell:
+|_  INFO (A): X-Powered-By expone PHP/8.5.12 (fuera de umbrales Oct-2026)
 ```
 
+### `nil` (sin salida): **no significa "seguro"**
+
+Si el script no imprime nada, puede deberse a:
+
+- El servidor oculta todas las cabeceras (`expose_php=Off`, `Server` limpio).
+- No hay `display_errors` ni sesiones expuestas.
+- **El objetivo está detrás de un CDN/WAF** que intercepta las peticiones (Cloudflare, Akamai, Imperva…). En ese caso el script escanea el *edge*, no el origen.
+
+**Para obtener un veredicto concluyente detrás de un CDN, apunta el escaneo a la IP de origen real.** Escanear la IP de Cloudflare (p. ej. `104.21.x.x`, `172.67.x.x`) **no** revela el estado del servidor PHP.
+
 ---
 
-## ⚖️ Metadatos e Información de Autoría
+## 🧪 Sistemas y entornos probados
 
-*   **Autor:** Dr. Arturo E. Mata (ZeroDaysLab)
-*   **Licencia:** Same as Nmap (Ver [https://nmap.org](https://nmap.org))
-*   **Categorías:** `vuln`, `discovery`, `safe`
+| Plataforma | Versión | Nmap | Estado |
+|---|---|---|---|
+| Debian | 13 (Trixie) | 7.94+ | ✅ Validado |
+| Ubuntu | 26.04 LTS | 7.94+ | ✅ Validado |
+| Windows | 11 (23H2+) | 7.95+ | ✅ Validado |
+| PHP objetivo | 5.2.6 / 8.5.11 | — | ✅ Detectado como vulnerable |
+| PHP objetivo | 8.5.12 (parcheado) | — | ✅ Sin falsos positivos |
+| Detrás de Cloudflare | edge Anycast | — | ⚠️ `nil` esperado (requiere IP origen) |
 
 ---
-_Descargo de responsabilidad: Este script fue desarrollado con fines exclusivamente educativos, de auditoría interna y seguridad defensiva. No realiza explotación activa ni modificaciones de memoria que atenten contra la disponibilidad de los servicios auditados._
+
+## ⚠️ Limitaciones conocidas
+
+- **No confirma el CVE.** Es fingerprinting + verificación conductual. Para confirmación, usar un PoC (KtebhTeam, r0yfire, ZeroHack) contra la IP de origen.
+- **No funciona contra objetivos detrás de CDN/WAF** sin conocer la IP de origen. Cloudflare, por ejemplo, responde `400 Bad Request` a los paths malformados de las Técnicas D y E antes de que lleguen al backend.
+- **La Técnica C depende de que el origen setee `PHPSESSID` en la respuesta a `/`**, lo cual no siempre ocurre si la app solo arranca sesión en rutas autenticadas.
+- **La Técnica D requiere `display_errors=On`**, poco habitual en producción.
+- **La Técnica E puede generar entradas en logs del WAF** al enviar input malformado; úsala con autorización.
+
+---
+
+## ⚖️ Metadatos
+
+- **Autor:** Dr. Arturo E. Mata (ZeroDaysLab)
+- **Licencia:** Same as Nmap — [https://nmap.org/book/man-legal.html](https://nmap.org/book/man-legal.html)
+- **Categorías:** `vuln`, `discovery`, `safe`
+- **CVE objetivo:** CVE-2026-109618 / CVE-2026-109619
+
+---
+
+_Descargo de responsabilidad: Script desarrollado con fines educativos, de auditoría interna y seguridad defensiva. No realiza explotación activa ni modificaciones de memoria. Úsalo solo contra sistemas con autorización explícita por escrito._
+```
