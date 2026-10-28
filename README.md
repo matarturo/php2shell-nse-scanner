@@ -98,16 +98,16 @@ nmap -p 443 -Pn -n --script http-vuln-php2shell \
 
 ### Modo debug (ver por qué cada técnica dispara o no)
 
+Si quieres ver las trazas internas de Lua y saber exactamente qué está respondiendo el servidor, añade el flag `-d`:
+
 ```bash
-nmap -p 443 -Pn -n --script http-vuln-php2shell -d dominio-objetivo.com
+nmap -p 443 -Pn -n --script http-vuln-php2shell --script-args http.useragent="Mozilla/5.0" -d dominio-objetivo.com
 ```
 
-### A través de proxy corporativo
+### 🌍 A través de proxy corporativo multiplataforma (Windows / Linux / Mac)
 
 ```bash
-export http_proxy="http://usuario:pass@proxy.local:8080"
-export https_proxy="$http_proxy"
-nmap -p 443 -Pn -n --script http-vuln-php2shell dominio-interno.local
+nmap -p 443 -Pn -n --script http-vuln-php2shell --script-args http.useragent="Mozilla/5.0" --proxies "http://usuario:pass@proxy.local:8080" dominio-interno.local
 ```
 
 *(Nmap hereda las variables de entorno del sistema; no uses `--proxies` con valores ficticios.)*
