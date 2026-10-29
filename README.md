@@ -114,16 +114,19 @@ nmap -p 443 -Pn -n --script http-vuln-php2shell --script-args http.useragent="Mo
 
 ---
 
+```markdown
 ## 📊 Interpretación de resultados
 
 ### Alerta: versión dentro de umbrales vulnerables
 
 ```text
 | http-vuln-php2shell:
-|   ALERTA (A): PHP2Shell potencial via X-Powered-By -> PHP/8.4.25
-|   ALERTA (B): PHP2Shell potencial via cabecera Server -> PHP/8.4.25
-|_  AVISO (C): Backend PHP detectado por cookie PHPSESSID
-```
+|   VULNERABLE:
+|   Title: PHP2Shell (CVE-2026-109618 / CVE-2026-109619) Potential Exposure
+|   IDs: CVE:2026-109618, CVE:2026-109619
+|   State: LIKELY VULNERABLE
+|   ALERTA (A): PHP2Shell potencial via X-Powered-By -> PHP/5.6.40
+|_  AVISO (C): Backend PHP detectado por cookie PHPSESSID (cabeceras de version pueden estar ocultas).
 
 ### Informativo: PHP detectado pero fuera de umbrales
 
@@ -144,17 +147,35 @@ Si el script no imprime nada, puede deberse a:
 
 ---
 
+#
+---
+
+```markdown
 ## 🧪 Sistemas y entornos probados
 
-| Plataforma | Versión | Nmap | Estado |
+| Plataforma / Entorno | Versión | Nmap | Estado |
 |---|---|---|---|
 | Debian | 13 (Trixie) | 7.94+ | ✅ Validado |
 | Ubuntu | 26.04 LTS | 7.94+ | ✅ Validado |
-| Windows | 11 (23H2+) | 7.95+ | ✅ Validado |
-| PHP objetivo | 5.2.6 / 8.5.11 | — | ✅ Detectado como vulnerable |
-| PHP objetivo | 8.5.12 (parcheado) | — | ✅ Sin falsos positivos |
-| Detrás de Cloudflare | edge Anycast | — | ⚠️ `nil` esperado (requiere IP origen) |
+| Windows | 11 (23H2+) | 7.98 | ✅ Validado |
+| PHP Local (Docker) | 5.6.40 | 7.98 | ✅ Detectado como VULNERABLE |
+| PHP Público (Invicti) | 5.2.6 | 7.98 | ✅ Detectado como VULNERABLE |
+| PHP Público (Parcheado) | 8.5.12 | 7.98 | ✅ Sin falsos positivos (INFO) |
+| Detrás de Cloudflare | edge Anycast | 7.98 | ⚠️ `nil`/AVISO C esperado (requiere IP origen) |
 
+### 🐳 Prueba rápida en local (Docker)
+
+Si quieres validar la eficacia del script sin depender de servidores externos, puedes levantar un contenedor vulnerable y escanearlo:
+
+```bash
+# 1. Levantar un PHP vulnerable
+docker run -d --name php-vuln -p 8080:80 -e PHP_INI_DISPLAY_ERRORS=1 -e PHP_INI_EXPOSE_PHP=1 php:5.6-apache
+
+# 2. Crear un index.php para forzar la ejecución de PHP y la cookie de sesión
+docker exec -it php-vuln bash -c 'echo "<?php session_start(); echo 1; ?>" > /var/www/html/index.php'
+
+# 3. Escanear el contenedor
+nmap -p 8080 -Pn -n -sV --script http-vuln-php2shell --script-args http.useragent="Mozilla/5.0" 127.0.0.1
 ---
 
 ## ⚠️ Limitaciones conocidas
