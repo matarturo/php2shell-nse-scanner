@@ -119,7 +119,7 @@ nmap -p 443 -Pn -n --script http-vuln-php2shell --script-args http.useragent="Mo
 
 ### Alerta: versión dentro de umbrales vulnerables
 
-```text
+```
 | http-vuln-php2shell:
 |   VULNERABLE:
 |   Title: PHP2Shell (CVE-2026-109618 / CVE-2026-109619) Potential Exposure
@@ -127,10 +127,11 @@ nmap -p 443 -Pn -n --script http-vuln-php2shell --script-args http.useragent="Mo
 |   State: LIKELY VULNERABLE
 |   ALERTA (A): PHP2Shell potencial via X-Powered-By -> PHP/5.6.40
 |_  AVISO (C): Backend PHP detectado por cookie PHPSESSID (cabeceras de version pueden estar ocultas).
+```
 
 ### Informativo: PHP detectado pero fuera de umbrales
 
-```text
+```
 | http-vuln-php2shell:
 |_  INFO (A): X-Powered-By expone PHP/8.5.12 (fuera de umbrales Oct-2026)
 ```
