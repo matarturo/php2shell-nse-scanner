@@ -1,4 +1,4 @@
-# http-vuln-php2shell.nse
+o# http-vuln-php2shell.nse
 
 Script NSE para Nmap que realiza **fingerprinting de versión PHP** y **verificación conductual** orientada a detectar la superficie de exposición de PHP2Shell (**CVE-2026-109618** y **CVE-2026-109619**).
 
@@ -170,15 +170,15 @@ Si el script no imprime nada, puede deberse a:
 Si quieres validar la eficacia del script sin depender de servidores externos, puedes levantar un contenedor vulnerable y escanearlo:
 
 
-# 1. Levantar un PHP vulnerable
+### 1. Levantar un PHP vulnerable
 ```bash
 docker run -d --name php-vuln -p 8080:80 -e PHP_INI_DISPLAY_ERRORS=1 -e PHP_INI_EXPOSE_PHP=1 php:5.6-apache
 ```
-# 2. Crear un index.php para forzar la ejecución de PHP y la cookie de sesión
+### 2. Crear un index.php para forzar la ejecución de PHP y la cookie de sesión
 ```bash
 docker exec -it php-vuln bash -c 'echo "<?php session_start(); echo 1; ?>" > /var/www/html/index.php'
 ```
-# 3. Escanear el contenedor
+### 3. Escanear el contenedor
 ```bash
 nmap -p 8080 -Pn -n -sV --script http-vuln-php2shell --script-args http.useragent="Mozilla/5.0" 127.0.0.1
 ```
