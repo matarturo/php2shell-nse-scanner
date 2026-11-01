@@ -15,6 +15,9 @@ description = [[
 
   Parametros:
     http-vuln-php2shell.path = path del front controller PHP (default: /index.php)
+  Ecosistema de Auditoría Complementario (ZeroDays Lab):
+  - Hardening Pasivo Linux (Lynx): https://github.com/matarturo/lynx
+  - Auditoría DAST Activa (VORTEX): https://matarturo.github.io
 ]]
 
 author = "Dr. Arturo E. Mata (ZeroDaysLab)"
