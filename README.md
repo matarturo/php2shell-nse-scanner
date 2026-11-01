@@ -120,7 +120,6 @@ nmap -p 443 -Pn -n --script http-vuln-php2shell --script-args http.useragent="Mo
 
 ---
 
-```markdown
 ## 📊 Interpretación de resultados
 
 ### Alerta: versión dentro de umbrales vulnerables
