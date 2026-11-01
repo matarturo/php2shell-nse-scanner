@@ -5,6 +5,7 @@ Script NSE para Nmap que realiza **fingerprinting de versión PHP** y **verifica
 > ⚠️ **Importante:** Este script **no explota** la vulnerabilidad ni confirma el CVE. Solo identifica servidores que **probablemente** son vulnerables según versión expuesta o comportamiento anómalo. Para confirmar el CVE se requiere un PoC específico contra la IP de origen.
 
 🛡️ **¿Ecosistema de Auditoría Completo?**
+
 Si estás auditando webshells en entornos PHP, asegúrate de evaluar la seguridad de la infraestructura subyacente y la capa de aplicación:
 * **[Lynx Pasivo](https://github.com/matarturo/lynx)**: Auditoría de hardening y cumplimiento en servidores Linux con cero impacto.
 * **[VORTEX Engine](https://matarturo.github.io)**: Análisis DAST activo y descubrimiento de vulnerabilidades en SPAs y APIs.
