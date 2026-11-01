@@ -153,10 +153,6 @@ Si el script no imprime nada, puede deberse a:
 
 ---
 
-#
----
-
-```markdown
 ## 🧪 Sistemas y entornos probados
 
 | Plataforma / Entorno | Versión | Nmap | Estado |
@@ -173,15 +169,20 @@ Si el script no imprime nada, puede deberse a:
 
 Si quieres validar la eficacia del script sin depender de servidores externos, puedes levantar un contenedor vulnerable y escanearlo:
 
-```bash
+
 # 1. Levantar un PHP vulnerable
+```bash
 docker run -d --name php-vuln -p 8080:80 -e PHP_INI_DISPLAY_ERRORS=1 -e PHP_INI_EXPOSE_PHP=1 php:5.6-apache
-
+```
 # 2. Crear un index.php para forzar la ejecución de PHP y la cookie de sesión
+```bash
 docker exec -it php-vuln bash -c 'echo "<?php session_start(); echo 1; ?>" > /var/www/html/index.php'
-
+```
 # 3. Escanear el contenedor
+```bash
 nmap -p 8080 -Pn -n -sV --script http-vuln-php2shell --script-args http.useragent="Mozilla/5.0" 127.0.0.1
+```
+
 ---
 
 ## ⚠️ Limitaciones conocidas
