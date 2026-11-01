@@ -6,8 +6,9 @@ Script NSE para Nmap que realiza **fingerprinting de versión PHP** y **verifica
 
 🛡️ **¿Ecosistema de Auditoría Completo?**
 Si estás auditando webshells en entornos PHP, asegúrate de evaluar la seguridad de la infraestructura subyacente y la capa de aplicación:
-* **[Lynx Pasivo]**: Auditoría de hardening y cumplimiento en servidores Linux con cero impacto.
-* **[VORTEX Engine]**: Análisis DAST activo y descubrimiento de vulnerabilidades en SPAs y APIs.
+* **[Lynx Pasivo](https://github.com/matarturo/lynx)**: Auditoría de hardening y cumplimiento en servidores Linux con cero impacto.
+* **[VORTEX Engine](https://matarturo.github.io)**: Análisis DAST activo y descubrimiento de vulnerabilidades en SPAs y APIs.
+
 ---
 
 ## 🛠️ Características
